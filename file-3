@@ -1,0 +1,33 @@
+import pandas as pd
+from surprise import Dataset, Reader, SVD
+from surprise.model_selection import train_test_split
+
+# Load sample movie ratings (MovieLens 100k dataset)
+data = Dataset.load_builtin('ml-100k')
+trainset, testset = train_test_split(data, test_size=0.25)
+
+# Use SVD algorithm for recommendation
+model = SVD()
+model.fit(trainset)
+
+# Predict ratings for testset
+predictions = model.test(testset)
+
+# Create a function to recommend top movies for a given user
+def get_top_recommendations(user_id, model, data, n=5):
+    movie_ids = list(set([i for (i, _) in data.raw_ratings]))
+    rated_movies = set([j for (i, j, _) in data.ur[data.to_inner_uid(str(user_id))]])
+
+    unrated_movies = [m for m in movie_ids if m not in rated_movies]
+    
+    predictions = [model.predict(str(user_id), str(movie_id)) for movie_id in unrated_movies]
+    predictions.sort(key=lambda x: x.est, reverse=True)
+
+    top_n = predictions[:n]
+    return [(pred.iid, round(pred.est, 2)) for pred in top_n]
+
+# Example: Get top 5 movie recommendations for user with ID 196
+recommendations = get_top_recommendations(196, model, data)
+print("Top movie recommendations for user 196:")
+for movie_id, rating in recommendations:
+    print(f"Movie ID: {movie_id}, Predicted Rating: {rating}")
